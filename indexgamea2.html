@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Writer's Word Scramble</title>
+<title>A2 Word Scramble - Writer Edition</title>
 
 <style>
 :root {
@@ -63,7 +63,7 @@ body {
   to { box-shadow: 0 0 45px rgba(212,160,23,0.5); }
 }
 
-h1 { color: var(--gold); }
+h1 { color: var(--gold); margin-top: 0; }
 
 .scrambled-word {
   font-size: 2rem;
@@ -71,7 +71,10 @@ h1 { color: var(--gold); }
   margin: 25px 0;
   color: var(--gold);
   white-space: pre-wrap;
+  min-height: 3rem;
 }
+
+.shake { animation: letterShake 0.4s ease; }
 
 @keyframes letterShake {
   0% { transform: translateX(0); }
@@ -82,8 +85,6 @@ h1 { color: var(--gold); }
   100% { transform: translateX(0); }
 }
 
-.shake { animation: letterShake 0.4s ease; }
-
 input {
   padding: 12px;
   width: 85%;
@@ -93,6 +94,7 @@ input {
   text-align: center;
   background: #111;
   color: white;
+  outline: none;
 }
 
 button {
@@ -110,7 +112,7 @@ button {
 
 button:hover { transform: scale(1.08); }
 
-.stats { margin-top: 20px; }
+.stats { margin-top: 20px; font-size: 1.1rem; }
 
 .reveal-overlay {
   position: fixed;
@@ -127,6 +129,7 @@ button:hover { transform: scale(1.08); }
   pointer-events: none;
   transition: opacity 0.4s ease;
   text-align: center;
+  z-index: 10;
 }
 
 #statusText {
@@ -136,19 +139,20 @@ button:hover { transform: scale(1.08); }
 }
 
 #bigWord {
-  font-size: 4rem;
+  font-size: 3rem;
   font-weight: bold;
   letter-spacing: 6px;
   color: var(--gold);
-  text-shadow: 0 0 20px var(--gold),
-               0 0 40px var(--gold);
+  text-shadow: 0 0 20px var(--gold);
   white-space: pre-wrap;
+  padding: 0 20px;
 }
 
 #wordInfo {
   font-size: 1.2rem;
   margin-top: 25px;
   max-width: 80%;
+  line-height: 1.5;
 }
 
 #continueBtn {
@@ -164,17 +168,17 @@ button:hover { transform: scale(1.08); }
 
 <div class="game-container">
   <h1>WORD SCRAMBLE</h1>
-  <p>Unscramble the word before time runs out.</p>
+  <p>Unscramble the word from your list!</p>
 
   <div class="scrambled-word" id="scrambledWord"></div>
 
-  <input type="text" id="userInput" placeholder="Type your guess...">
+  <input type="text" id="userInput" placeholder="Type your guess..." autocomplete="off">
   <br>
   <button onclick="checkAnswer()">Submit</button>
   <button onclick="newWord()">New Word</button>
 
   <div class="stats">
-    Score: <span id="score">0</span> |
+    Score: <span id="score">0</span> | 
     Time: <span id="timer">15</span>s
   </div>
 </div>
@@ -187,10 +191,9 @@ button:hover { transform: scale(1.08); }
 </div>
 
 <script>
-const specialFirstWord = "Theophilus";
+const specialFirstWord = "i love mr. theophilus";
 
 const wordsData = {
-Theophilus: {pos:"noun", def:"An iconic legendary person."},
   achieve: {pos:"verb", def:"To successfully complete something."},
   balance: {pos:"noun/verb", def:"A state of stability or equal weight."},
   culture: {pos:"noun", def:"The customs and ideas of a society."},
@@ -209,18 +212,20 @@ Theophilus: {pos:"noun", def:"An iconic legendary person."},
   support: {pos:"verb", def:"To help or assist."},
   travel: {pos:"verb", def:"To go from one place to another."},
   understand: {pos:"verb", def:"To know the meaning of something."},
-  value: {pos:"noun", def:"The importance of something."}
+  value: {pos:"noun", def:"The importance of something."},
+  "i love mr. theophilus": {pos:"phrase", def:"An iconic legendary sentence."}
+};
 
-const words = Object.keys(wordsData);
+const words = Object.keys(wordsData).filter(w => w !== specialFirstWord);
 
-let currentWord="";
-let score=0;
-let timeLeft=15;
+let currentWord = "";
+let score = 0;
+let timeLeft = 15;
 let timerInterval;
 let revealTimeout;
-let firstRound=true;
+let firstRound = true;
 
-function scrambleWord(word){
+function scrambleWord(word) {
   const chars = word.split("");
   for (let i = chars.length - 1; i > 0; i--) {
     if (chars[i] === " " || chars[i] === ".") continue;
@@ -231,101 +236,96 @@ function scrambleWord(word){
   return chars.join("");
 }
 
-function startTimer(){
+function startTimer() {
   clearInterval(timerInterval);
-  timeLeft=15;
-  document.getElementById("timer").textContent=timeLeft;
+  timeLeft = 15;
+  document.getElementById("timer").textContent = timeLeft;
 
-  timerInterval=setInterval(()=>{
+  timerInterval = setInterval(() => {
     timeLeft--;
-    document.getElementById("timer").textContent=timeLeft;
-    if(timeLeft<=0){
+    document.getElementById("timer").textContent = timeLeft;
+    if (timeLeft <= 0) {
       clearInterval(timerInterval);
       revealWord(false);
     }
-  },1000);
+  }, 1000);
 }
 
-function revealWord(correct){
-  const overlay=document.getElementById("revealOverlay");
-  const status=document.getElementById("statusText");
-  const bigWord=document.getElementById("bigWord");
-  const wordInfo=document.getElementById("wordInfo");
-  const continueBtn=document.getElementById("continueBtn");
+function revealWord(correct) {
+  const overlay = document.getElementById("revealOverlay");
+  const status = document.getElementById("statusText");
+  const bigWord = document.getElementById("bigWord");
+  const wordInfo = document.getElementById("wordInfo");
+  const continueBtn = document.getElementById("continueBtn");
 
   clearInterval(timerInterval);
 
-  status.textContent = correct ? "Correct" : "Time has run out";
+  status.textContent = correct ? "Correct!" : "Time's Up!";
+  status.style.color = correct ? "#00ff88" : "#ff4d4d";
   bigWord.textContent = currentWord.toUpperCase();
 
-  if(wordsData[currentWord]){
-    const info=wordsData[currentWord];
-    wordInfo.textContent="("+info.pos+") — "+info.def;
+  if (wordsData[currentWord.toLowerCase()]) {
+    const info = wordsData[currentWord.toLowerCase()];
+    wordInfo.innerHTML = `<span style="color:#d4a017">[${info.pos}]</span><br>${info.def}`;
   } else {
-    wordInfo.textContent="";
+    wordInfo.textContent = "";
   }
 
-  overlay.style.opacity=1;
-  overlay.style.pointerEvents="auto";
-  continueBtn.style.display="inline-block";
+  overlay.style.opacity = 1;
+  overlay.style.pointerEvents = "auto";
+  continueBtn.style.display = "inline-block";
 
-  revealTimeout=setTimeout(()=>{
+  revealTimeout = setTimeout(() => {
     continueGame();
-  },15000);
+  }, 8000);
 }
 
-function continueGame(){
+function continueGame() {
   clearTimeout(revealTimeout);
-  const overlay=document.getElementById("revealOverlay");
-  const continueBtn=document.getElementById("continueBtn");
+  const overlay = document.getElementById("revealOverlay");
+  const continueBtn = document.getElementById("continueBtn");
 
-  overlay.style.opacity=0;
-  overlay.style.pointerEvents="none";
-  continueBtn.style.display="none";
+  overlay.style.opacity = 0;
+  overlay.style.pointerEvents = "none";
+  continueBtn.style.display = "none";
   newWord();
 }
 
-function newWord(){
-  if(firstRound){
+function newWord() {
+  if (firstRound) {
     currentWord = specialFirstWord;
     firstRound = false;
   } else {
-    currentWord = words[Math.floor(Math.random()*words.length)];
+    currentWord = words[Math.floor(Math.random() * words.length)];
   }
 
-  document.getElementById("scrambledWord").textContent=scrambleWord(currentWord);
-  const input=document.getElementById("userInput");
-  input.value="";
+  document.getElementById("scrambledWord").textContent = scrambleWord(currentWord);
+  const input = document.getElementById("userInput");
+  input.value = "";
   input.focus();
   startTimer();
 }
 
-function checkAnswer(){
-  const guess=document.getElementById("userInput").value.toLowerCase();
-  const wordBox=document.getElementById("scrambledWord");
+function checkAnswer() {
+  const guess = document.getElementById("userInput").value.toLowerCase().trim();
+  const wordBox = document.getElementById("scrambledWord");
 
-  if(guess===currentWord){
+  if (guess === currentWord.toLowerCase()) {
     score++;
-    document.getElementById("score").textContent=score;
+    document.getElementById("score").textContent = score;
     revealWord(true);
   } else {
     wordBox.classList.add("shake");
-    setTimeout(()=>wordBox.classList.remove("shake"),400);
+    setTimeout(() => wordBox.classList.remove("shake"), 400);
   }
 }
 
-document.getElementById("userInput").addEventListener("keydown",function(e){
-  if(e.key==="Enter"){
-    checkAnswer();
-  }
-});
-
-const background=document.querySelector(".background");
-for(let i=0;i<35;i++){
-  const span=document.createElement("span");
-  span.style.left=Math.random()*100+"vw";
-  span.style.animationDuration=(Math.random()*10+5)+"s";
-  span.style.opacity=Math.random();
+const background = document.querySelector(".background");
+for (let i = 0; i < 35; i++) {
+  const span = document.createElement("span");
+  span.style.left = Math.random() * 100 + "vw";
+  span.style.animationDuration = (Math.random() * 10 + 5) + "s";
+  span.style.opacity = Math.random();
   background.appendChild(span);
 }
 
@@ -333,8 +333,4 @@ newWord();
 </script>
 
 </body>
-
 </html>
-
-
-
